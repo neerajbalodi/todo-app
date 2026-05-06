@@ -6,7 +6,9 @@
         body { font-family: Arial; max-width: 500px; margin: 50px auto; }
         .done { text-decoration: line-through; color: gray; }
         input { padding: 8px; width: 70%; }
-        button { padding: 8px 16px; }
+        button { padding: 8px 16px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+        li { margin: 10px 0; }
+        a { margin-left: 8px; text-decoration: none; }
     </style>
 </head>
 <body>
@@ -18,13 +20,13 @@
 </form>
 
 <ul>
-    {% for i, todo in enumerate(todos) %}
+    {% for todo in todos %}
     <li class="{{ 'done' if todo.done }}">
         {{ todo.task }}
         {% if not todo.done %}
-        <a href="/complete/{{ i }}">✅ Done</a>
+        <a href="/complete/{{ loop.index0 }}">✅ Done</a>
         {% endif %}
-        <a href="/delete/{{ i }}">🗑️ Delete</a>
+        <a href="/delete/{{ loop.index0 }}">🗑️ Delete</a>
     </li>
     {% endfor %}
 </ul>
