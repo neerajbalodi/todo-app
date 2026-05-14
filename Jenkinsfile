@@ -5,11 +5,6 @@ pipeline {
         githubPush()
     }
 
-    environment {
-        APP_EC2 = 'ubuntu@172.31.5.188'
-        APP_DIR = '/home/ubuntu/todo-app'
-    }
-
     stages {
 
         stage('Clone') {
@@ -18,66 +13,39 @@ pipeline {
             }
         }
 
-        stage('Copy Code to App EC2') {
-            steps {
-                withCredentials([sshUserPrivateKey(
-                    credentialsId: 'app-ec2-ssh',
-                    keyFileVariable: 'SSH_KEY'
-                )]) {
-                    sh '''
-                        scp -i $SSH_KEY -o StrictHostKeyChecking=no -r * ${APP_EC2}:${APP_DIR}/
-                    '''
-                }
-            }
-        }
-
         stage('Create Virtual Env') {
             steps {
-                withCredentials([sshUserPrivateKey(
-                    credentialsId: 'app-ec2-ssh',
-                    keyFileVariable: 'SSH_KEY'
-                )]) {
-                    sh '''
-                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${APP_EC2} "
-                            cd ${APP_DIR}
-                            python3 -m venv venv
-                            . venv/bin/activate
-                            pip install -r requirements.txt
-                        "
-                    '''
-                }
+                sh '''
+                   python3 -m venv venv
+                   . venv/bin/activate
+                   pip install -r requirements.txt
+                '''
             }
         }
 
-        stage('Deploy App') {
+        stage('Copy Files To EC2') {
             steps {
-                withCredentials([sshUserPrivateKey(
-                    credentialsId: 'app-ec2-ssh',
-                    keyFileVariable: 'SSH_KEY'
-                )]) {
-                    sh '''
-                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${APP_EC2} "
-                            pkill -f 'python3 app.py' || true
-                            sleep 2
-                            cd ${APP_DIR}
-                            . venv/bin/activate
-                            nohup python3 app.py > /tmp/app.log 2>&1 &
-                            echo \$! > /tmp/app.pid
-                            sleep 2
-                            cat /tmp/app.log
-                        "
-                    '''
-                }
+                sh '''
+                scp -i /var/lib/jenkins/.ssh/app-ec2-key \
+                -o StrictHostKeyChecking=no \
+                -r Jenkinsfile app.log app.py requirements.txt templates venv \
+                ubuntu@172.31.5.188:/home/ubuntu/todo-app/
+                '''
             }
         }
-    }
 
-    post {
-        success {
-            echo '✅ App deployed successfully on App EC2!'
-        }
-        failure {
-            echo '❌ Deployment failed — check logs!'
+        stage('Run App On EC2') {
+            steps {
+                sh '''
+                ssh -i /var/lib/jenkins/.ssh/app-ec2-key \
+                -o StrictHostKeyChecking=no \
+                ubuntu@172.31.5.188 '
+                    cd /home/ubuntu/todo-app
+                    source venv/bin/activate
+                    nohup python3 app.py > output.log 2>&1 &
+                '
+                '''
+            }
         }
     }
 }
