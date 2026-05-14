@@ -1,41 +1,32 @@
 pipeline {
     agent any
-
+    
+    triggers {
+    githubPush()
+}
+    
     stages {
-
-        stage('Clone Repo') {
+        stage('Clone') {
             steps {
-                git branch: 'main', url: 'https://github.com/your-username/todo-app.git'
+                git branch: 'main', url: 'https://github.com/neerajbalodi/todo-app.git'
             }
         }
-
-        stage('Install Dependencies') {
-            steps {
-                sh 'pip3 install -r requirements.txt'
-            }
-        }
-
-        stage('Deploy to EC2') {
+         stage('Create Virtual Env') {
             steps {
                 sh '''
-                    # Kill any existing running instance
-                    pkill -f "python3 app.py" || true
-
-                    # Start the app in background
-                    nohup python3 app.py > app.log 2>&1 &
-
-                    echo "App deployed and running on port 5000"
+                   python3 -m venv venv
+                   . venv/bin/activate
+                   pip install -r requirements.txt
                 '''
             }
         }
-    }
-
-    post {
-        success {
-            echo '✅ Deployment successful!'
-        }
-        failure {
-            echo '❌ Deployment failed. Check logs.'
+         stage('App Deployed') {
+            steps {
+                sh '''
+                  . venv/bin/activate
+                  python3 app.py
+                '''
+            }
         }
     }
 }
