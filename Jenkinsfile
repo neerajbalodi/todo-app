@@ -20,9 +20,12 @@ pipeline {
 
         stage('Copy Code to App EC2') {
             steps {
-                sshagent(['app-ec2-ssh']) {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'app-ec2-ssh',
+                    keyFileVariable: 'SSH_KEY'
+                )]) {
                     sh '''
-                        scp -o StrictHostKeyChecking=no -r * ${APP_EC2}:${APP_DIR}/
+                        scp -i $SSH_KEY -o StrictHostKeyChecking=no -r * ${APP_EC2}:${APP_DIR}/
                     '''
                 }
             }
@@ -30,9 +33,12 @@ pipeline {
 
         stage('Create Virtual Env') {
             steps {
-                sshagent(['app-ec2-ssh']) {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'app-ec2-ssh',
+                    keyFileVariable: 'SSH_KEY'
+                )]) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no ${APP_EC2} "
+                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${APP_EC2} "
                             cd ${APP_DIR}
                             python3 -m venv venv
                             . venv/bin/activate
@@ -45,9 +51,12 @@ pipeline {
 
         stage('Deploy App') {
             steps {
-                sshagent(['app-ec2-ssh']) {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'app-ec2-ssh',
+                    keyFileVariable: 'SSH_KEY'
+                )]) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no ${APP_EC2} "
+                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${APP_EC2} "
                             pkill -f 'python3 app.py' || true
                             sleep 2
                             cd ${APP_DIR}
@@ -69,11 +78,6 @@ pipeline {
         }
         failure {
             echo '❌ Deployment failed — check logs!'
-            sshagent(['app-ec2-ssh']) {
-                sh '''
-                    ssh -o StrictHostKeyChecking=no ${APP_EC2} "cat /tmp/app.log"
-                '''
-            }
         }
     }
 }
